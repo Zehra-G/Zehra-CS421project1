@@ -164,6 +164,7 @@ def compare(fixation_XY, word_XY, x_thresh=512, n_nearest_lines=3):
 		start_of_line = end_of_line
 	return fixation_XY
 
+
 ######################################################################
 # MERGE
 #
