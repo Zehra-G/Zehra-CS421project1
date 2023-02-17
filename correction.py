@@ -50,9 +50,104 @@ def generate_fixations_left_skip_regression(aois_with_tokens):
 # write a function generate offset error as described in the paper
 def error_offset(x_offset, y_offset, fixations):
     '''creates error to move fixations (shift in dissertation)'''
-    
-    pass
 
+    results = []
+
+    for fix in fixations:
+        x, y, duration = fix[0], fix[1], fix[2]
+        results.append([x + x_offset, y + y_offset, duration])
+
+    return results
+
+# Generates shift error as described in the paper
+def error_shift(ds, fixations):
+    results = []
+
+    for fix in fixations:
+        x, y, duration = fix[0], fix[1], fix[2]
+        deltay = y * ds
+        results.append([x, y + deltay, duration])
+    
+    return results 
+
+#Generates slope error as described in the paper
+def error_slope(ds, fixations):
+    results = []
+
+    for fix in fixations:
+        x, y, duration = fix[0], fix[1], fix[2]
+        deltay = x * ds
+        results.append([x, y + deltay, duration])
+    
+    return results
+
+#Within-line Regression Error
+
+def error_within_line_regression(prob, fixations, sortedwords, aoi_lines, duplicate_fixations=True):
+    results = []
+    new_fixations = []
+    line_number = 0
+
+    for fix in fixations:
+        x, y, duration = fix
+        results.append([x, y, duration])
+
+        if duplicate_fixations:
+            new_fixations.append([x, y, duration])
+
+        if y > aoi_lines.at[line_number, 'y'] + aoi_lines.at[line_number, 'height']:
+            line_number += 1
+
+        if random.random() < prob:
+            reg_x = 0
+            reg_y = 0
+
+            words_on_line = sortedwords[line_number]
+
+            recent_index = next((i for i, w in enumerate(words_on_line) if w[0] > x), len(words_on_line))
+
+            if recent_index > 0:
+                random_word = random.choice(words_on_line[:recent_index])
+                reg_x, reg_y = random_word
+
+                results.append([reg_x, reg_y, duration])
+
+                if duplicate_fixations:
+                    new_fixations.append([reg_x, reg_y, duration])
+
+    return (results, new_fixations) if duplicate_fixations else results
+   
+
+
+#Between-line Regression Error
+
+def error_between_line_regression(regression_probability, fixations, words_sorted, aoi_lines, duplicate_fixations=True):
+    
+    results = []  
+    new_fixations = []  
+    line_number = 0  
+    
+    for x, y, duration in fixations:
+        results.append([x, y, duration])  
+        if duplicate_fixations:
+            new_fixations.append([x, y, duration])  
+
+        if y > aoi_lines.at[line_number, 'y'] + aoi_lines.at[line_number, 'height']:
+            line_number += 1
+        
+        if random.random() < regression_probability and line_number > 0:
+            weights = [1 / (i+1) for i in range(line_number)]
+            random_line_number = random.choices(range(line_number), weights=weights, k=1)[0] 
+            words_on_line = words_sorted[random_line_number]
+
+            if words_on_line:  
+                random_word = random.choice(words_on_line)
+                reg_x, reg_y = random_word[0], random_word[1]
+                results.append([reg_x, reg_y, duration])
+                if duplicate_fixations:
+                    new_fixations.append([x, y, duration]) 
+
+    return (results, new_fixations) if duplicate_fixations else results
 
 # noise
 import random
@@ -179,10 +274,10 @@ def draw_correction(Image_file, fixations, match_list):
         outline_color = (50, 255, 0, 0)
         
         if match_list[index] == 1:
-        	fill_color = (50, 255, 0, 220)
+            fill_color = (50, 255, 0, 220)
         else:
         	fill_color = (255, 55, 0, 220)
-
+        
         draw.ellipse(bound, fill=fill_color, outline=outline_color)
 
         bound = (x0, y0, x, y)
